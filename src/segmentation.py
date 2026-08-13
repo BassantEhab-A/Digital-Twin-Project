@@ -12,8 +12,8 @@ def segment_liver(input_path):
     output_folder = Path("results")
     output_folder.mkdir(exist_ok=True)
 
-    print("\n--- Starting High-Accuracy CPU Liver Segmentation ---")
-    print("This runs sequentially in a single process stream to protect system memory.")
+   
+    print("Starting  CPU Liver Segmentation")
     
     totalsegmentator(
         input=str(input_path),
