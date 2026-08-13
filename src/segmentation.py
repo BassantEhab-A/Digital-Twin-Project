@@ -13,7 +13,7 @@ def segment_liver(input_path):
     output_folder.mkdir(exist_ok=True)
 
    
-    print("Starting  CPU Liver Segmentation")
+    print("Starting Liver Segmentation")
     
     totalsegmentator(
         input=str(input_path),
