@@ -61,3 +61,17 @@ Liver-Digital-Twin/
     └── segmentation.py              
 </pre>
 
+### TODOS
+----------------
+- [ ] add more documentation to the code
+- [ ] in readme , for someone wanna reproduce this experiment and results 
+    - [ ] write exactly what he will do
+    - [ ] add requirements file (libs that should be installed to get this project working)
+- [ ] use conda for environment management (read about this)
+- [ ] add .gitignore (read about it)
+
+- [ ] make the workflow as follows :
+    - user open the main window ---> he will find a button to load nii file ---->when click it will open file selection window----> select the file ---> the file open and the user can see the volume
+    - user can maniplate ww and ww , and can go through slice with a slider 
+- [ ] add a button that call liver segmentation ( so that when click ) the total segmentator will run ---->output the liver mask -----> the mask overlayed over liver tissue ------> we cab see liver with generatedd mask
+- [ ] afte we get this app that enable user to load his files and run segmentation ...we will stop and re-organize the project and add decide what to add more
