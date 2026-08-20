@@ -55,7 +55,8 @@ Liver-Digital-Twin/
     ├── medical_volume.py            
     ├── Image_Loader.py              
     ├── image_io.py                  
-    └── segmentation.py              
+    └── segmentation.py 
+                 
 </pre>
 
 
