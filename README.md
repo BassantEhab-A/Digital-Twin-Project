@@ -41,21 +41,42 @@
 
 <pre>
 Liver-Digital-Twin/
-├── main.py                         
-├── debug_check.py                   
-├── README.md                       
-├── patient_3Dircadb1.2.nii.gz       # Unique patient-specific continuous 3D anatomical volume data
-├── results/                         # Target storage boundary for calculated binary segment masks
-│   └── liver_3Dircadb1.2.nii.gz     # deep learning 3D liver segmentation mask
-├── docs/
-│   └── images/                      # Workspace UI figures and visual pipeline verification captures
-│       ├── Pateint1_seg_overlay.png
-│       └── digital_twin_viewer (2).png
-└── src/
-    ├── medical_volume.py            
-    ├── Image_Loader.py              
-    ├── image_io.py                  
-    └── segmentation.py 
+Liver-Digital-Twin/
+│
+├── main.py
+├── README.md
+├── requirements.txt
+│   └── Required Python libraries
+├── .gitignore
+│   └── Files Git should not track
+├── src/
+│   │
+│   ├── __init__.py
+│   │
+│   ├── medical_volume.py
+│   │
+│   ├── Image_Loader.py
+│   │
+│   ├── image_io.py
+│   │
+│   ├── segmentation.py
+│   │
+│   └── gui/
+│       │
+│       ├── __init__.py
+│       │
+│       ├── main_window.py
+│       │
+│       ├── volume_viewer.py
+│       │
+│       └── segmentation_runner.py
+│
+├── results/
+
+│
+└── docs/
+    └── project screenshots
+     
                  
 </pre>
 
