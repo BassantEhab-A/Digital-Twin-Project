@@ -52,28 +52,16 @@ Liver-Digital-Twin/
 ├── src/
 │   │
 │   ├── __init__.py
-│   │
 │   ├── medical_volume.py
-│   │
 │   ├── Image_Loader.py
-│   │
 │   ├── image_io.py
-│   │
 │   ├── segmentation.py
-│   │
 │   └── gui/
-│       │
 │       ├── __init__.py
-│       │
 │       ├── main_window.py
-│       │
 │       ├── volume_viewer.py
-│       │
 │       └── segmentation_runner.py
-│
 ├── results/
-
-│
 └── docs/
     └── project screenshots
      
