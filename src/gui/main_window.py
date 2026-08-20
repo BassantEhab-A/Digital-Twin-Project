@@ -190,17 +190,7 @@ class MainWindow(QMainWindow):
         self.slice_slider.setRange(0,number_of_slices - 1,)
 
 
-       
-    # Existing segmentation reuse
-
-
-    # Slice and window controls
-   
-    # Segmentation preparation
-
-
-
-    # Segmentation
+    
 
 
    
