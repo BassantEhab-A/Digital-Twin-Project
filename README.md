@@ -71,12 +71,58 @@ Liver-Digital-Twin/
      
                  
 
-<h2><strong>Environment Setup</strong></h2>
-<p>Create a conda environment and activate it:
-    <center>conda create -n liver-twin python=3.10</center>
-    <center>conda activate liver-twin</center>
-then install the compatible <strong>PyTorch</strong> version first. Afterwards, install the remaining Python libraries listed in <code>requirements.txt</code>, including the packages required for medical image loading, processing, segmentation, visualization, and the GUI.</p>
-  
+<h2>Project Download & Environment Setup</h2>
+
+<table>
+  <tr>
+    <td align="center"><strong>Get the Code</strong></td>
+    <td>
+      Clone the repository using Git or download it as a ZIP from GitHub:
+      <br>
+      <code>git clone https://github.com/BassantEhab-A/Digital-Twin-Project.git</code>
+      <br>
+      Then open a terminal inside the project folder.
+    </td>
+  </tr>
+
+  <tr>
+    <td align="center"><strong>Create Environment</strong></td>
+    <td>
+      Create and activate a Conda environment using Python
+      <strong>3.10–3.12</strong> (tested with <strong>3.10</strong>):
+      <br>
+      <code>conda create -n liver-twin python=3.10</code>
+      <br>
+      <code>conda activate liver-twin</code>
+    </td>
+  </tr>
+
+  <tr>
+    <td align="center"><strong>Install PyTorch</strong></td>
+    <td>
+      Install the <strong>PyTorch</strong> build appropriate for your system and available hardware acceleration.
+    </td>
+  </tr>
+
+  <tr>
+    <td align="center"><strong>Install Dependencies</strong></td>
+    <td>
+      Install the remaining project dependencies from <code>requirements.txt</code>:
+      <br>
+      <code>pip install -r requirements.txt</code>
+    </td>
+  </tr>
+
+  <tr>
+    <td align="center"><strong>Run Application</strong></td>
+    <td>
+      Launch the application from the project folder:
+      <br>
+      <code>python main.py</code>
+    </td>
+  </tr>
+</table>
+
   
 
 ### TODOS
