@@ -128,8 +128,8 @@ Liver-Digital-Twin/
 ### TODOS
 ----------------
 - [x] add more documentation to the code
-- [ ] in readme , for someone wanna reproduce this experiment and results 
-    - [ ] write exactly what he will do
+- [x] in readme , for someone wanna reproduce this experiment and results 
+    - [x] write exactly what he will do
     - [x] add requirements file (libs that should be installed to get this project working)
 - [x] use conda for environment management (read about this)
 - [x] add .gitignore (read about it)
