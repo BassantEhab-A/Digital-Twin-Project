@@ -67,18 +67,15 @@ Liver-Digital-Twin/
 ├── results/
 └── docs/
     └── project screenshots
+</pre>
      
                  
 
 <h2><strong>Environment Setup</strong></h2>
-    </td>
-    <td>
-      create a conda environment and activate it then,
-      install the compatible <strong>PyTorch</strong> version first, then install the remaining Python libraries listed in
-      <code>requirements.txt</code>, including the packages required for medical image loading, processing,
-      segmentation, visualization, and the GUI.
-    </td>
-  </tr>
+<p>Create a conda environment and activate it:
+    <center>conda create -n liver-twin python=3.10</center>
+    <center>conda activate liver-twin</center>
+then install the compatible <strong>PyTorch</strong> version first. Afterwards, install the remaining Python libraries listed in <code>requirements.txt</code>, including the packages required for medical image loading, processing, segmentation, visualization, and the GUI.</p>
   
   
 
