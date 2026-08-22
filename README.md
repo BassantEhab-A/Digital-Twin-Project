@@ -70,7 +70,45 @@ Liver-Digital-Twin/
      
                  
 </pre>
+<h3>Current Reproduction Workflow</h3>
 
+<pre><code>
+      |
+      v
+Create Conda Environment
+      |
+      v
+Install PyTorch + requirements.txt
+      |
+      v
+Run main.py
+      |
+      v
+Load NIfTI or DICOM
+      |
+      v
+Display CT Volume
+      |
+      v
+Slice Navigation + WW/WL
+      |
+      v
+Run / Reuse Liver Segmentation
+      |
+      v
+Generate Liver Mask
+      |
+      v
+Display CT + Liver Mask Overlay
+</code></pre>
+
+
+<p>
+<strong>Note:</strong> This section documents the environment in which the current prototype was tested. Hardware-dependent components such as CUDA may
+differ on another system.
+</p>
+
+<hr />
 
 
 ### TODOS
