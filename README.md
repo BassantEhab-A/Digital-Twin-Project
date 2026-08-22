@@ -70,7 +70,7 @@ Liver-Digital-Twin/
      
                  
 </pre>
-td align="center" width="20%">
+align="center" width="20%">
       <strong>1. Environment Setup</strong>
     </td>
     <td>
