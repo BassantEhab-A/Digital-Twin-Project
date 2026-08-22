@@ -69,9 +69,8 @@ Liver-Digital-Twin/
     └── project screenshots
      
                  
-</pre>
-align="center" width="20%">
-      <strong>1. Environment Setup</strong>
+
+<h2><strong>Environment Setup</strong></h2>
     </td>
     <td>
       create a conda environment and activate it then,
