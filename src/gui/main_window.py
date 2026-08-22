@@ -135,5 +135,4 @@ class MainWindow(QMainWindow):
         layout.addStretch()
 
         return panel
-
     
