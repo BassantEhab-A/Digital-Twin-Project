@@ -1,7 +1,7 @@
 #this image_io.py is responsible for saving and loading different medical image formats.
 import os
 import SimpleITK as sitk
-from .medical_volume import MedicalVolume
+from ..core.medical_volume import MedicalVolume
 
 
 def load_nifti(input_path):
