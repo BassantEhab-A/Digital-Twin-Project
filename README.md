@@ -50,17 +50,20 @@ Liver-Digital-Twin/
 ├── .gitignore
 │   └── Files Git should not track
 ├── src/
-│   │
-│   ├── __init__.py
-│   ├── medical_volume.py
-│   ├── Image_Loader.py
-│   ├── image_io.py
-│   ├── segmentation.py
-│   └── gui/
-│       ├── __init__.py
-│       ├── main_window.py
-│       ├── volume_viewer.py
-│       └── segmentation_runner.py
+│   ├── core/
+│   │   ├── __init__.py
+│   │   ├── case_manager.py
+│   │   └── medical_volume.py
+│   ├── gui/
+│   │   ├── main_window.py
+│   │   └── volume_viewer.py
+│   ├── io/
+│   │   ├── __init__.py
+│   │   ├── dicom_io.py
+│   │   └── nifti_io.py
+│   └── segmentation_module
+│       ├── segmentation_runner.py
+│       └── segmentation.py
 ├── results/
 └── docs/
     └── project screenshots
