@@ -1,6 +1,6 @@
 import SimpleITK as sitk
 
-from core.medical_volume import MedicalVolume
+from src.core.medical_volume import MedicalVolume
 
 
 def load_dicom(folder_path):
