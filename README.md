@@ -30,10 +30,23 @@
 </ul>
 <hr />
 
-<h2>Results and Visualization</h2>
 
-<h3>Liver Segmentation</h3>
-<p>The current pipeline implements an interactive 2D Axial Slice Overlay Viewer built on an optimized Matplotlib desktop window layout manager. The framework reads multi-dimensional NumPy arrays and applies a mathematical transparency layer to overlay the semi-transparent red AI tissue mask cleanly over the grayscale anatomical CT scan slices. It automatically tracks real-time array boundaries, enabling cross-sectional visual inspection via the mouse scroll wheel or keyboard arrow keys without masking underlying dense skeletal structures.</p>
+<h2>Current Progress</h2>
+
+<ul>
+  <li>Loading CT volumes from NIfTI files</li>
+  <li>Loading DICOM CT series</li>
+  <li>CT slice navigation</li>
+  <li>Window Width / Window Level adjustment</li>
+  <li>Liver segmentation using TotalSegmentator</li>
+  <li>Liver mask overlay on the CT volume</li>
+</ul>
+
+<h3>Results</h3>
+
+
+https://github.com/user-attachments/assets/44afeebf-0320-49b2-a0c8-dbb6f0b47c96
+
 
 
 <h2>Project Directory Tree</h2>
