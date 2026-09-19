@@ -117,7 +117,7 @@ Liver-Digital-Twin/
 
 ## Step 2 — One-Click Segmentation Backend
 
-- [ ] Connect a backend endpoint (using FastAPI) that takes the uploaded CT scan.
+- [ ] Connect a backend endpoint that takes the uploaded CT scan.
 - [ ] Run TotalSegmentator in the background to automatically extract masks for:
   * Liver
   * Tumors (if present)
