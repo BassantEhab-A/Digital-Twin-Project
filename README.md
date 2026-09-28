@@ -45,7 +45,7 @@
   <li>CT slice navigation</li>
   <li>Window Width / Window Level adjustment</li>
   <li>Liver segmentation using TotalSegmentator</li>
-  <li>Liver mask overlay on the CT volume<li>
+  <li>Liver mask overlay on the CT volume</li>
   <li>Display the 2D slices (Axial, Coronal, Sagittal views)</li>
 </ul>
 
