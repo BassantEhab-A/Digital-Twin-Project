@@ -23,42 +23,27 @@ class SegmentationWorker(QObject):
     input_path : str or Path
         NIfTI CT volume that will be segmented.
 
-    output_directory : str or Path
-        Case-specific directory where the generated segmentation
-        should be stored.
-
-    Signals
-    -------
-    finished
-        Emitted with the generated liver-mask path after successful
-        segmentation.
-
-    failed
-        Emitted with an error message if segmentation fails.
+    output_mask_path : str or Path
+        Full path (including filename) where the liver mask should be
+        written. CaseManager is responsible for choosing this path.
     """
 
     finished = Signal(object)
     failed = Signal(str)
 
-    def __init__(self, input_path, output_directory):
-        """Store segmentation input and output locations."""
-
+    def __init__(self, input_path, output_mask_path):
         super().__init__()
-
         self.input_path = input_path
-        self.output_directory = output_directory
+        self.output_mask_path = output_mask_path
 
     @Slot()
     def run(self):
         """Execute TotalSegmentator and report success or failure."""
-
         try:
             mask_path = segment_liver(
                 input_path=self.input_path,
-                output_directory=self.output_directory,
+                output_mask_path=self.output_mask_path,
             )
-
             self.finished.emit(mask_path)
-
         except Exception as error:
             self.failed.emit(str(error))

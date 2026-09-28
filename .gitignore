@@ -1,47 +1,71 @@
-# Python
+# ===== Python =====
 __pycache__/
 *.py[cod]
 *$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
 
-# Virtual environments
+# ===== Virtual environments =====
 .venv/
 venv/
 env/
 ENV/
-
-# Conda
 .conda/
 
-# IDE / Editor files
+# ===== IDE / editor =====
 .vscode/
 .idea/
-
-# Operating system generated files
+*.swp
+*.swo
+*~
 .DS_Store
 Thumbs.db
-desktop.ini
 
+# ===== Jupyter =====
+.ipynb_checkpoints/
+*.ipynb
 
-# Medical imaging data
-*.nii
-*.nii.gz
+# ===== Project-specific =====
+# Regenerable segmentation results and converted NIfTI files.
+# These may contain patient data — never commit.
+results/
+!results/.gitkeep
 
+# Medical image formats — never commit
 *.dcm
 *.dicom
+*.nii
+*.nii.gz
+*.nrrd
+*.mha
+*.mhd
 
-# Generated project outputs
-results/
-outputs/
+# Test data at project root
+patient*.nii.gz
+input_*.nii.gz
 
-# Temporary files
-*.tmp
-*.temp
+# TotalSegmentator caches
+.nnunet_results/
+.nnunet_preprocessed/
+.totalsegmentator/
+
+# ===== Testing / coverage =====
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.mypy_cache/
+.ruff_cache/
+
+# ===== Logs =====
 *.log
+logs/
 
-# Python packaging
-build/
-dist/
-*.egg-info/
-
-# Jupyter Notebook
-.ipynb_checkpoints/
+# ===== OS / temp =====
+*.tmp
+*.bak
+*.orig

@@ -45,7 +45,9 @@
   <li>CT slice navigation</li>
   <li>Window Width / Window Level adjustment</li>
   <li>Liver segmentation using TotalSegmentator</li>
-  <li>Liver mask overlay on the CT volume</li>
+  <li>Liver mask overlay on the CT volume<li>
+  <li>Display the 2D slices (Axial, Coronal, Sagittal views)</li>
+  <li>
 </ul>
 
 <h3>Results</h3>
@@ -57,32 +59,53 @@ https://github.com/user-attachments/assets/44afeebf-0320-49b2-a0c8-dbb6f0b47c96
 
 <pre>
 Liver-Digital-Twin/
+<pre>
 Liver-Digital-Twin/
 │
-├── main.py
+├── main.py                                  # Application entry point
 ├── README.md
-├── requirements.txt
-│   └── Required Python libraries
-├── .gitignore
-│   └── Files Git should not track
+├── requirements.txt                         # Python dependencies
+├── .gitignore                               # Files Git should not track
+│
 ├── src/
-│   ├── core/
+│   ├── __init__.py
+│   │
+│   ├── core/                                # Domain model
 │   │   ├── __init__.py
-│   │   ├── case_manager.py
-│   │   └── medical_volume.py
-│   ├── gui/
-│   │   ├── main_window.py
-│   │   └── volume_viewer.py
-│   ├── io/
+│   │   ├── case_manager.py                  # Per-case state + result paths
+│   │   └── medical_volume.py                # MedicalVolume dataclass
+│   │
+│   ├── gui/                                 # Qt user interface
 │   │   ├── __init__.py
-│   │   ├── dicom_io.py
-│   │   └── nifti_io.py
-│   └── segmentation_module
-│       ├── segmentation_runner.py
-│       └── segmentation.py
-├── results/
+│   │   ├── main_window.py                   # Main window + controller logic
+│   │   ├── tabs/
+│   │   │   ├── __init__.py
+│   │   │   └── data_tab.py                  # Data + Segmentation tabs
+│   │   └── viewer/
+│   │       ├── __init__.py
+│   │       ├── pane_header.py               # Colored orientation bar + slider
+│   │       ├── slice_viewer.py              # Single 2D slice pane
+│   │       ├── viewer_3d.py                 # PyVista 3D liver viewer
+│   │       └── quad_viewer.py               # 2×2 layout orchestrator
+│   │
+│   ├── io/                                  # Medical image readers/writers
+│   │   ├── __init__.py
+│   │   ├── dicom_io.py                      # DICOM series loading
+│   │   └── nifti_io.py                      # NIfTI load/save
+│   │
+│   └── segmentation_module/                 # Liver segmentation pipeline
+│       ├── __init__.py
+│       ├── segmentation.py                  # TotalSegmentator wrapper
+│       └── segmentation_runner.py           # QThread worker
+│
+├── results/                                 # Per-case outputs (gitignored)
+│   └── <case_name>/
+│       ├── input_<case>.nii.gz              # DICOM→NIfTI conversion
+│       └── liver.nii.gz                     # Segmentation mask
+│
 └── docs/
-    └── project screenshots
+    └── screenshots/
+</pre>
 </pre>
 
 <h2>Project Download & Environment Setup</h2>
@@ -104,9 +127,9 @@ Liver-Digital-Twin/
 ----------------------
 ## Step 1 — Upload & CT Viewer
 
-- [ ] Set up a basic project repository on GitHub.
-- [ ] Build a simple frontend upload button for CT scans (DICOM or NIfTI format).
-- [ ] Display the 2D slices (Axial, Coronal, Sagittal views) so the user can scroll through the scan.
+- [x] Set up a basic project repository on GitHub.
+- [x] Build a simple frontend upload button for CT scans (DICOM or NIfTI format).
+- [x] Display the 2D slices (Axial, Coronal, Sagittal views) so the user can scroll through the scan.
 
 ### 🧠 Learning Points for Step 1:
 - **Git & Version Control:** Learn how to initialize a repository (`git init`), make clean commits (`git add`, `git commit`), and push your code to GitHub (`git push`). Always write clear commit messages like `feat: add CT file upload component`.

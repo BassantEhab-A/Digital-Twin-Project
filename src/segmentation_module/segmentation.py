@@ -3,14 +3,14 @@ It receives an input NIfTI path and returns the generated liver-mask path."""
 
 from pathlib import Path
 
-from totalsegmentator.python_api import (
-    totalsegmentator,
-)
+from totalsegmentator.python_api import totalsegmentator
 
 
 def segment_liver(
     input_path,
-    output_directory="results",
+    output_mask_path,
+    device="cpu",
+    fast=False,
 ):
     """
     Segment the liver from a CT NIfTI volume.
@@ -20,61 +20,61 @@ def segment_liver(
     input_path : str or Path
         Path to the CT volume in NIfTI format.
 
-    output_directory : str or Path, optional
-        Directory where TotalSegmentator should save its output.
+    output_mask_path : str or Path
+        Full path (including filename) where the liver mask should be saved.
+        The parent directory is created automatically. TotalSegmentator
+        itself writes '<output_dir>/liver.nii.gz'; this function renames
+        that file to `output_mask_path` before returning.
+
+    device : str, optional
+        'cpu' or 'cuda'. CPU is used by default to avoid GPU VRAM limits.
+
+    fast : bool, optional
+        If True, uses the lower-resolution model. Defaults to False.
 
     Returns
     -------
     Path
         Path to the generated liver segmentation mask.
-
-    Notes
-    -----
-    The full-resolution TotalSegmentator model is used rather than the
-    lower-resolution fast mode.
-
-    CPU execution is currently used to avoid GPU VRAM limitations on the
-    development hardware.
     """
-
     input_path = Path(input_path)
+    output_mask_path = Path(output_mask_path)
 
-    output_directory = Path(
-        output_directory
-    )
+    # TotalSegmentator writes everything into a directory.
+    # We give it a dedicated temporary directory, then move the file.
+    staging_directory = output_mask_path.parent / "_totalseg_staging"
+    staging_directory.mkdir(parents=True, exist_ok=True)
 
-    output_directory.mkdir(
-        parents=True,
-        exist_ok=True,
-    )
-
-    print(
-        f"Starting liver segmentation for: "
-        f"{input_path.name}"
-    )
+    print(f"Starting liver segmentation for: {input_path.name}")
 
     totalsegmentator(
         input=str(input_path),
-        output=str(output_directory),
-        fast=False,
+        output=str(staging_directory),
+        fast=fast,
         roi_subset=["liver"],
-        device="cpu",
+        device=device,
     )
 
-    output_mask = (
-        output_directory
-        / "liver.nii.gz"
-    )
+    # TotalSegmentator's naming convention: '<output>/liver.nii.gz'
+    staged_mask = staging_directory / "liver.nii.gz"
 
-    if not output_mask.exists():
+    if not staged_mask.exists():
         raise FileNotFoundError(
-            "TotalSegmentator completed but "
-            "liver.nii.gz was not found."
+            f"TotalSegmentator completed but {staged_mask} was not found."
         )
 
-    print(
-        f"Liver segmentation completed: "
-        f"{output_mask}"
-    )
+    # Move the mask to its final, case-specific destination.
+    output_mask_path.parent.mkdir(parents=True, exist_ok=True)
+    if output_mask_path.exists():
+        output_mask_path.unlink()
+    staged_mask.replace(output_mask_path)
 
-    return output_mask
+    # Clean up the staging directory.
+    try:
+        staging_directory.rmdir()
+    except OSError:
+        # Not empty (extra files) — leave it, harmless.
+        pass
+
+    print(f"Liver segmentation completed: {output_mask_path}")
+    return output_mask_path

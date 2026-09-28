@@ -1,15 +1,25 @@
 """Main application window for the Liver Digital Twin.
+
 Patient/case state and output-path management are handled by CaseManager.
-Medical-image visualization is handled by VolumeViewer.
+Medical-image visualization is handled by QuadViewer.
 Segmentation computation is handled outside the GUI by SegmentationWorker.
 """
 
 from pathlib import Path
+
 from PySide6.QtCore import QThread
-from PySide6.QtWidgets import QFileDialog, QHBoxLayout, QMainWindow, QMessageBox, QStatusBar, QTabWidget, QWidget
+from PySide6.QtWidgets import (
+    QFileDialog,
+    QHBoxLayout,
+    QMainWindow,
+    QMessageBox,
+    QStatusBar,
+    QTabWidget,
+    QWidget,
+)
 
 from src.core.case_manager import CaseManager
-from src.gui.viewer.slice_viewer import VolumeViewer
+from src.gui.viewer.quad_viewer import QuadViewer
 from src.io.dicom_io import load_dicom
 from src.io.nifti_io import load_nifti
 from src.segmentation_module.segmentation_runner import SegmentationWorker
@@ -17,7 +27,7 @@ from src.gui.tabs import data_tab
 
 
 class MainWindow(QMainWindow):
-    # Main graphical interface for the Liver Digital Twin.
+    """Main graphical interface for the Liver Digital Twin."""
 
     def __init__(self):
         """Initialize the application window and its components."""
@@ -39,7 +49,7 @@ class MainWindow(QMainWindow):
     def _configure_window(self):
         """Configure the main application window."""
         self.setWindowTitle("Liver Digital Twin")
-        self.resize(1200, 800)
+        self.resize(1400, 900)
         self.setStatusBar(QStatusBar())
         self.statusBar().showMessage("Ready - Load medical imaging data.")
 
@@ -49,7 +59,9 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(central_widget)
         main_layout = QHBoxLayout(central_widget)
 
+        # ------------------------------------------------------------
         # Left side: tabs
+        # ------------------------------------------------------------
         self.tabs = QTabWidget()
         self.data_tab = data_tab.DataTab()
         self.segmentation_tab = data_tab.SegmentationTab()
@@ -61,24 +73,37 @@ class MainWindow(QMainWindow):
         self.data_tab.load_nifti_button.clicked.connect(self.load_nifti_file)
         self.data_tab.load_dicom_button.clicked.connect(self.load_dicom_folder)
         self.data_tab.slice_slider.valueChanged.connect(self.change_slice)
-        self.data_tab.ww_control.valueChanged.connect(self.viewer_window_width_changed)
-        self.data_tab.wl_control.valueChanged.connect(self.viewer_window_level_changed)
+        self.data_tab.ww_control.valueChanged.connect(
+            self.viewer_window_width_changed
+        )
+        self.data_tab.wl_control.valueChanged.connect(
+            self.viewer_window_level_changed
+        )
 
         # Connect Segmentation tab control
-        self.segmentation_tab.segment_button.clicked.connect(self.start_liver_segmentation)
+        self.segmentation_tab.segment_button.clicked.connect(
+            self.start_liver_segmentation
+        )
 
-        # Right side: existing viewer
-        self.viewer = VolumeViewer()
+        # ------------------------------------------------------------
+        # Right side: 2x2 quad viewer (axial / sagittal / coronal / 3D)
+        # ------------------------------------------------------------
+        self.viewer = QuadViewer()
 
-        main_layout.addWidget(self.tabs, 1)
-        main_layout.addWidget(self.viewer, 4)
+        main_layout.addWidget(self.tabs, 0)
+        main_layout.addWidget(self.viewer, 1)
 
     # NIfTI loading
     # =====================================================================
 
     def load_nifti_file(self):
         """Open a file dialog and load a NIfTI CT volume."""
-        file_path, _ = QFileDialog.getOpenFileName(self, "Select NIfTI Volume", "", "NIfTI Files (*.nii *.nii.gz)")
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select NIfTI Volume",
+            "",
+            "NIfTI Files (*.nii *.nii.gz)",
+        )
 
         # The user pressed Cancel.
         if not file_path:
@@ -107,7 +132,9 @@ class MainWindow(QMainWindow):
 
     def load_dicom_folder(self):
         """Open a folder-selection dialog and load a DICOM series."""
-        folder_path = QFileDialog.getExistingDirectory(self, "Select DICOM Folder", "")
+        folder_path = QFileDialog.getExistingDirectory(
+            self, "Select DICOM Folder", ""
+        )
 
         # The user pressed Cancel.
         if not folder_path:
@@ -146,6 +173,22 @@ class MainWindow(QMainWindow):
         self.viewer.set_volume(volume)
         self._configure_controls_for_volume()
 
+        # Push study/series description to each 2D pane's corner overlay.
+        self.viewer.set_overlay_text(self._build_overlay_text(volume))
+
+    def _build_overlay_text(self, volume):
+        """
+        Build a short overlay string from a MedicalVolume's DICOM metadata.
+
+        Example output: "Body 1.0 CE" or "CT ABDOMEN  Venous Phase".
+        Returns an empty string when no metadata is available (e.g. NIfTI).
+        """
+        meta = getattr(volume, "metadata", None) or {}
+        study = (meta.get("StudyDescription") or "").strip()
+        series = (meta.get("SeriesDescription") or "").strip()
+        parts = [p for p in (study, series) if p]
+        return "  ".join(parts)
+
     def _configure_controls_for_volume(self):
         """Configure slice and viewing controls for the current CT."""
         ct_volume = self.case_manager.ct_volume
@@ -173,7 +216,9 @@ class MainWindow(QMainWindow):
             mask_volume = self.case_manager.get_existing_liver_mask()
 
         except Exception as error:
-            self.statusBar().showMessage(f"Existing segmentation could not be loaded: {error}")
+            self.statusBar().showMessage(
+                f"Existing segmentation could not be loaded: {error}"
+            )
             self.segmentation_tab.segment_button.setText("Segment Liver")
             return
 
@@ -201,7 +246,9 @@ class MainWindow(QMainWindow):
             return
 
         number_of_slices = ct_volume.voxel_data.shape[0]
-        self.data_tab.slice_label.setText(f"Slice: {slice_index + 1} / {number_of_slices}")
+        self.data_tab.slice_label.setText(
+            f"Slice: {slice_index + 1} / {number_of_slices}"
+        )
 
     # CT Window Width / Window Level
     # =====================================================================
@@ -235,7 +282,8 @@ class MainWindow(QMainWindow):
             answer = QMessageBox.question(
                 self,
                 "Re-run Liver Segmentation",
-                "A liver segmentation already exists for this medical volume.\n\nDo you want to run TotalSegmentator again?",
+                "A liver segmentation already exists for this medical volume.\n\n"
+                "Do you want to run TotalSegmentator again?",
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                 QMessageBox.StandardButton.No,
             )
@@ -246,17 +294,22 @@ class MainWindow(QMainWindow):
         try:
             self.statusBar().showMessage("Preparing segmentation input...")
             input_path = self.case_manager.prepare_segmentation_input()
-            output_directory = self.case_manager.get_results_directory()
+            output_mask_path = self.case_manager.get_liver_mask_path()
 
         except Exception as error:
-            QMessageBox.critical(self, "Segmentation Preparation Failed", str(error))
+            QMessageBox.critical(
+                self, "Segmentation Preparation Failed", str(error)
+            )
             return
 
         self._set_processing_state(True)
         self.statusBar().showMessage("Running liver segmentation...")
 
         self.segmentation_thread = QThread()
-        self.segmentation_worker = SegmentationWorker(input_path=input_path, output_directory=output_directory)
+        self.segmentation_worker = SegmentationWorker(
+            input_path=input_path,
+            output_mask_path=output_mask_path,
+        )
 
         # Run the worker outside the main GUI thread.
         self.segmentation_worker.moveToThread(self.segmentation_thread)
@@ -266,37 +319,41 @@ class MainWindow(QMainWindow):
         self.segmentation_worker.failed.connect(self.segmentation_failed)
         self.segmentation_worker.finished.connect(self.segmentation_thread.quit)
         self.segmentation_worker.failed.connect(self.segmentation_thread.quit)
-        self.segmentation_thread.finished.connect(self.segmentation_worker.deleteLater)
-        self.segmentation_thread.finished.connect(self.segmentation_thread.deleteLater)
+        self.segmentation_thread.finished.connect(
+            self.segmentation_worker.deleteLater
+        )
+        self.segmentation_thread.finished.connect(
+            self.segmentation_thread.deleteLater
+        )
 
         self.segmentation_thread.start()
 
     def segmentation_finished(self, mask_path):
         """Load and display a newly generated liver segmentation."""
         try:
-            generated_mask_path = Path(mask_path)
-            expected_mask_path = self.case_manager.get_liver_mask_path()
+            mask_volume = load_nifti(str(mask_path))
 
-            # Store the result using the case-specific filename.
-            if generated_mask_path.resolve() != expected_mask_path.resolve():
-                if expected_mask_path.exists():
-                    expected_mask_path.unlink()
-
-                generated_mask_path.replace(expected_mask_path)
-
-            mask_volume = load_nifti(str(expected_mask_path))
-
-            # CaseManager validates that the mask belongs to the active CT.
+            # CaseManager validates that the mask matches the active CT.
             self.case_manager.set_liver_mask(mask_volume)
             self.viewer.set_mask(mask_volume)
 
-            self.segmentation_tab.segment_button.setText("Re-run Liver Segmentation")
+            # Re-apply overlay text (in case a fresh case didn't have it yet).
+            self.viewer.set_overlay_text(
+                self._build_overlay_text(self.case_manager.ct_volume)
+            )
+
+            self.segmentation_tab.segment_button.setText(
+                "Re-run Liver Segmentation"
+            )
             self.statusBar().showMessage("Liver segmentation completed.")
 
         except Exception as error:
-            QMessageBox.critical(self, "Unable to Display Segmentation", str(error))
-            self.statusBar().showMessage("Segmentation completed but the mask could not be displayed.")
-
+            QMessageBox.critical(
+                self, "Unable to Display Segmentation", str(error)
+            )
+            self.statusBar().showMessage(
+                "Segmentation completed but the mask could not be displayed."
+            )
         finally:
             self._set_processing_state(False)
 
@@ -315,4 +372,6 @@ class MainWindow(QMainWindow):
         self.data_tab.slice_slider.setEnabled(has_volume and not processing)
         self.data_tab.ww_control.setEnabled(has_volume and not processing)
         self.data_tab.wl_control.setEnabled(has_volume and not processing)
-        self.segmentation_tab.segment_button.setEnabled(has_volume and not processing)
+        self.segmentation_tab.segment_button.setEnabled(
+            has_volume and not processing
+        )

@@ -45,7 +45,6 @@ class CaseManager: # The source may be either a NIfTI volume or a DICOM folder.
         self.segmentation_input_path = None
 #------------------------------------------------
 # Output paths
-
     def _get_source_name(self):
         #Returns a simple name derived from the current input source.
 
@@ -66,16 +65,15 @@ class CaseManager: # The source may be either a NIfTI volume or a DICOM folder.
         raise RuntimeError("Unknown medical-image source type.")
     
     def get_results_directory(self):
-        #Returns the path to the resulting directory 
-        results_directory = Path("results")
-        results_directory.mkdir(parents=True, exist_ok=True)
-        return results_directory
+        if self.source_path is None:
+             raise RuntimeError("No case loaded.")
+        case_dir = Path("results") / self._get_source_name()
+        case_dir.mkdir(parents=True, exist_ok=True)
+        return case_dir
 
     def get_liver_mask_path(self):
         #Return the liver-mask path associated with the current input.
-
-        source_name = self._get_source_name()
-        return self.get_results_directory() / f"liver_{source_name}.nii.gz"
+        return self.get_results_directory() / "liver.nii.gz"
 #----------------------------------------
 # Existing segmentation
 
