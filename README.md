@@ -140,11 +140,11 @@ Liver-Digital-Twin/
 
 ## Step 2 — One-Click Segmentation Backend
 
-- [ ] Connect a backend endpoint that takes the uploaded CT scan.
-- [ ] Run TotalSegmentator in the background to automatically extract masks for:
-  * Liver
-  * Tumors (if present)
-  * Vascular structures & Couinaud segments
+- [X] Connect a backend endpoint that takes the uploaded CT scan.
+- [X] Run TotalSegmentator in the background to automatically extract masks for:
+  * [X] Liver
+  * [ ] Tumors (if present)
+  * [ ] Vascular structures & Couinaud segments
 - [ ] Return the resulting binary masks back to the frontend.
 
 ### 🧠 Learning Points for Step 2:
