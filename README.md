@@ -47,7 +47,6 @@
   <li>Liver segmentation using TotalSegmentator</li>
   <li>Liver mask overlay on the CT volume<li>
   <li>Display the 2D slices (Axial, Coronal, Sagittal views)</li>
-  <li>
 </ul>
 
 <h3>Results</h3>
