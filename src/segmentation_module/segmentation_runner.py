@@ -39,7 +39,7 @@ class SegmentationWorker(QObject):
     finished = Signal(object)
     failed = Signal(str)
 
-    def __init__(self, input_path, output_dir, runs, device="cpu"):
+    def __init__(self, input_path, output_dir, runs, device=None):
         super().__init__()
         self.input_path = input_path
         self.output_dir = output_dir

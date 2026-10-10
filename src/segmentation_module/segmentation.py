@@ -9,6 +9,13 @@ import inspect ,json, os, shutil
 import SimpleITK as sitk
 from src.core.stuctures import STRUCTURE_BY_KEY, mask_filename
 
+
+def _default_device():
+    """Prefer CUDA when available; otherwise use the CPU."""
+    import torch
+
+    return "gpu" if torch.cuda.is_available() else "cpu"
+
 def _totalseg_config_path() -> Path:
     """Where TotalSegmentator keeps its settings file.
  
@@ -99,7 +106,7 @@ def _write_empty_mask(reference_path, destination) -> None:
     sitk.WriteImage(empty, str(destination))
  
  
-def run_segmentation_task(input_path, output_dir, run, device="cpu", fast=False):
+def run_segmentation_task(input_path, output_dir, run, device=None, fast=False):
     """Execute one TotalSegmentator run.
  
     Parameters
@@ -107,7 +114,7 @@ def run_segmentation_task(input_path, output_dir, run, device="cpu", fast=False)
     input_path : CT volume in NIfTI format.
     output_dir : case results directory; masks are written as <key>.nii.gz.
     run        : src.core.structures.Run (task, expected outputs, roi_subset).
-    device     : 'cpu' or 'gpu'. CPU by default to avoid GPU VRAM limits.
+    device     : 'cpu' or 'gpu'. Defaults to GPU when CUDA is available, else CPU.
     fast       : lower-resolution model; only applied to the 'total' task.
  
     Returns
@@ -117,6 +124,9 @@ def run_segmentation_task(input_path, output_dir, run, device="cpu", fast=False)
     # Imported here, not at module top: it pulls in torch (slow, heavy), and
     # this keeps application start-up and unit tests light.
     from totalsegmentator.python_api import totalsegmentator
+
+    if device is None:
+        device = _default_device()
  
     repair_totalseg_config()      # see docstring: a broken config.json fails every run
  
