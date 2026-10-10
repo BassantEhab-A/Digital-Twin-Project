@@ -5,13 +5,17 @@ from ..core.medical_volume import MedicalVolume
 
 
 def load_nifti(input_path):
-    """
-    Load a NIfTI image and return it as a MedicalVolume.
+    """Load a NIfTI image as a MedicalVolume, always reoriented to LPS.
+ 
+    NIfTI files are often stored RAS / LAS / with flipped axes. Reorienting
+    to LPS makes the array axes (Z, Y, X) mean the same thing as for DICOM,
+    so the viewers' orientation letters and anterior/posterior are correct.
     """
     if not os.path.exists(input_path):
         raise FileNotFoundError(f"Input file not found: {input_path}")
    
     image = sitk.ReadImage(input_path)
+    image = sitk.DICOMOrient(image, "LPS")  # reorient to LPS
 
 
     return MedicalVolume(

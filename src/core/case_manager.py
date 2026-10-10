@@ -2,26 +2,34 @@
 # The CaseManager keeps patient/case data management separate from the GUI.
 
 from pathlib import Path
+from src.core.stuctures import STRUCTURE_BY_KEY, STRUCTURES, mask_filename
 from src.io.nifti_io import load_nifti, save_nifti
 
 class CaseManager: # The source may be either a NIfTI volume or a DICOM folder.
   
     def __init__(self):
-        #Initialize the application with no active medical case.
+        # Initialize the application with no active medical case.
         self.source_type = None
         self.source_path = None
         self.ct_volume = None
-        self.liver_mask = None
+        # structure key -> MedicalVolume (binary mask). Keys come from
+        # src.core.structures, e.g. "liver", "liver_tumor", "liver_segment_3".
+        self.masks = {}
         self.segmentation_input_path = None
-    def clear(self):
-    #Clear all information belonging to the currently loaded case.
-
-      self.source_type = None
-      self.source_path = None
-      self.ct_volume = None
-      self.liver_mask = None
-      self.segmentation_input_path = None
     
+    def clear(self):
+    # Clear all information belonging to the currently loaded case.
+        self.source_type = None
+        self.source_path = None
+        self.ct_volume = None
+        self.masks = {}
+        self.segmentation_input_path = None
+
+    @property
+    def liver_mask(self):
+        """Backward-compatible access to the liver mask."""
+        return self.masks.get("liver")
+
 # Register loaded data
 
     def set_nifti_case(self, file_path, volume):
@@ -70,34 +78,57 @@ class CaseManager: # The source may be either a NIfTI volume or a DICOM folder.
         case_dir = Path("results") / self._get_source_name()
         case_dir.mkdir(parents=True, exist_ok=True)
         return case_dir
+    def get_mask_path(self, key):
+        """Path of the mask file for one structure, e.g. results/<case>/liver_tumor.nii.gz."""
+        if key not in STRUCTURE_BY_KEY:
+            raise KeyError(f"Unknown structure: {key}")
+        return self.get_results_directory() / mask_filename(key)
+ 
 
     def get_liver_mask_path(self):
         #Return the liver-mask path associated with the current input.
-        return self.get_results_directory() / "liver.nii.gz"
+        return self.get_mask_path("liver")
 #----------------------------------------
 # Existing segmentation
-
-    def get_existing_liver_mask(self):
-        #Return a previously generated liver mask if available and compatible with the current CT.
-        # The mask is reused only if its array dimensions match those of the currently loaded CT.
-
+    def existing_mask_keys(self):
+        """Keys of structures that already have a mask file on disk (nothing is loaded)."""
+        if self.source_path is None:
+            return []
+        return [s.key for s in STRUCTURES if self.get_mask_path(s.key).exists()]
+    def get_existing_masks(self, keys=None):
+        """Load previously generated masks from disk and add them to self.masks.
+ 
+        keys : structure keys to load (default: every structure that has a file).
+ 
+        A mask is used only if its array shape equals the CT's; a mask from a
+        geometrically different volume must never be shown over this CT.
+        One unreadable file does not stop the others from loading.
+        Returns the masks loaded by THIS call.
+        """
         if self.ct_volume is None:
-            return None
-
-        liver_mask_path = self.get_liver_mask_path()
-
-        if not liver_mask_path.exists():
-            return None
-
-        mask_volume = load_nifti(str(liver_mask_path))
-
-        # A mask belonging to a geometrically different volume must not be displayed over the current CT.
-        if mask_volume.voxel_data.shape != self.ct_volume.voxel_data.shape:
-            return None
-
-        self.liver_mask = mask_volume
-        return mask_volume
-
+            return {}
+ 
+        wanted = None if keys is None else set(keys)
+        found = {}
+        for structure in STRUCTURES:
+            if wanted is not None and structure.key not in wanted:
+                continue
+            path = self.get_mask_path(structure.key)
+            if not path.exists():
+                continue
+            try:
+                mask = load_nifti(str(path))
+            except Exception as error:
+                print(f"[CaseManager] Could not read {path.name}: {error}")
+                continue
+            if mask.voxel_data.shape != self.ct_volume.voxel_data.shape:
+                print(f"[CaseManager] {path.name} does not match this CT - skipped.")
+                continue
+            found[structure.key] = mask
+ 
+        self.masks.update(found)          # merge: keep what is already loaded
+        return found
+ 
     # =====================================================================
     # Segmentation input
 
@@ -136,19 +167,16 @@ class CaseManager: # The source may be either a NIfTI volume or a DICOM folder.
     # =====================================================================
     # Segmentation result
 
-    def set_liver_mask(self, mask_volume):
-        """
-        Store a liver segmentation for the current CT.
-
-        Parameters
-        ----------
-        mask_volume : MedicalVolume
-            Liver segmentation corresponding to the active CT volume.
-        """
+    def set_mask(self, key, mask_volume):
+        """Store one structure's mask for the current CT."""
         if self.ct_volume is None:
-            raise RuntimeError("Cannot assign a liver mask because no CT volume is loaded.")
-
+            raise RuntimeError("Cannot assign a mask because no CT volume is loaded.")
+        if key not in STRUCTURE_BY_KEY:
+            raise KeyError(f"Unknown structure: {key}")
         if mask_volume.voxel_data.shape != self.ct_volume.voxel_data.shape:
-            raise ValueError("The liver-mask dimensions do not match the CT volume.")
-
-        self.liver_mask = mask_volume
+            raise ValueError(f"The '{key}' mask dimensions do not match the CT volume.")
+        self.masks[key] = mask_volume
+ 
+    def set_liver_mask(self, mask_volume):
+        # Kept for backward compatibility.
+        self.set_mask("liver", mask_volume)

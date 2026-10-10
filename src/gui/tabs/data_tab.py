@@ -1,8 +1,9 @@
 """
-Tabs used in the Liver Digital Twin GUI.
-
-This module contains the UI layout for the Data and Segmentation tabs.
+Data tab used in the Liver Digital Twin GUI.
+ 
+This module contains the UI layout for loading data and viewing controls.
 Application logic remains in MainWindow.
+(The Segmentation tab now lives in segmentation_tab.py.)
 """
 
 from PySide6.QtCore import Qt
@@ -34,19 +35,8 @@ class DataTab(QWidget):
         patient_layout.addWidget(self.load_dicom_button)
         patient_layout.addWidget(self.file_label)
 
-        # Slice Navigation
+        # Slice Navigation : I removed this part since we substitued it with the paneheader
         # =========================================================
-
-        slice_group = QGroupBox("Slice Navigation")
-        slice_layout = QVBoxLayout(slice_group)
-
-        self.slice_label = QLabel("Slice: -")
-
-        self.slice_slider = QSlider(Qt.Orientation.Horizontal)
-        self.slice_slider.setEnabled(False)
-
-        slice_layout.addWidget(self.slice_label)
-        slice_layout.addWidget(self.slice_slider)
 
         # =========================================================
         # CT Windowing
@@ -78,26 +68,7 @@ class DataTab(QWidget):
         # =========================================================
 
         layout.addWidget(patient_group)
-        layout.addWidget(slice_group)
         layout.addWidget(window_group)
         layout.addStretch()
 
 
-class SegmentationTab(QWidget):
-    """UI controls for liver segmentation."""
-
-    def __init__(self):
-        super().__init__()
-
-        layout = QVBoxLayout(self)
-
-        segmentation_group = QGroupBox("Liver Segmentation")
-        segmentation_layout = QVBoxLayout(segmentation_group)
-
-        self.segment_button = QPushButton("Segment Liver")
-        self.segment_button.setEnabled(False)
-
-        segmentation_layout.addWidget(self.segment_button)
-
-        layout.addWidget(segmentation_group)
-        layout.addStretch()

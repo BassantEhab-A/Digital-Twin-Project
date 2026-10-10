@@ -1,17 +1,8 @@
-"""
-Orientation bar and slice slider shown above each 2D pane.
-
-The visual style mimics 3D Slicer's per-pane header:
-    [colored background] [orientation letters] [slice slider] [position]
-"""
+"""Orientation bar and slice slider shown above each pane."""
 
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtWidgets import (
-    QHBoxLayout,
-    QLabel,
-    QSlider,
-    QWidget,
-)
+from PySide6.QtWidgets import (QHBoxLayout,QLabel,QSlider,QWidget,)
+from sympy import ff
 
 
 # Color used for each pane's header bar.
@@ -24,18 +15,6 @@ PANE_COLORS = {
 
 
 class PaneHeader(QWidget):
-    """
-    Header strip shown above each pane.
-
-    Parameters
-    ----------
-    plane : str
-        One of "axial", "coronal", "sagittal", "three_d".
-    letters : str
-        The orientation letters to display (e.g. "R A S L P I").
-        Pass an empty string to hide them (used by the 3D pane).
-    """
-
     slider_moved = Signal(int)
 
     def __init__(self, plane, letters="", parent=None):
@@ -43,12 +22,14 @@ class PaneHeader(QWidget):
 
         self.plane = plane
         self.setFixedHeight(22)
+        self.setObjectName("PaneHeader")
+        # A plain QWidget subclass ignores stylesheet backgrounds unless this
+        # attribute is set -> the coloured bar was not being painted.
+        self.setAttribute(Qt.WA_StyledBackground, True)
         color = PANE_COLORS.get(plane, "#888888")
         self.setStyleSheet(
-            f"background-color: {color};"
-            f"color: white;"
-            f"font-family: monospace;"
-            f"font-size: 11px;"
+            f"#PaneHeader {{ background-color: {color}; }}"
+            "#PaneHeader QLabel { color: white; font-family: monospace; font-size: 11px; }"
         )
 
         layout = QHBoxLayout(self)
@@ -57,7 +38,7 @@ class PaneHeader(QWidget):
 
         # --- orientation letters ---
         self.letters_label = QLabel(letters)
-        self.letters_label.setStyleSheet("color: white; font-weight: bold;")
+        self.letters_label.setStyleSheet("font-weight: bold;")
         layout.addWidget(self.letters_label)
 
         # --- slice slider ---
@@ -71,7 +52,6 @@ class PaneHeader(QWidget):
         self.position_label = QLabel("0.0mm")
         self.position_label.setMinimumWidth(70)
         self.position_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        self.position_label.setStyleSheet("color: white;")
         layout.addWidget(self.position_label)
 
     # ------------------------------------------------------------------ API

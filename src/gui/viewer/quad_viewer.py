@@ -1,8 +1,11 @@
 """
 2x2 quad layout: Axial | Sagittal over Coronal | 3D.
-
+ 
 Synchronizes the crosshair across the three 2D panes and pushes
-volume/mask updates to all four panes.
+volume / mask updates to all four panes.
+ 
+Masks are now a dict {structure key: MedicalVolume}; which of them are drawn
+is controlled with a set of visible keys.
 """
 
 from __future__ import annotations
@@ -10,7 +13,7 @@ from __future__ import annotations
 import numpy as np
 
 from PySide6.QtCore import Signal
-from PySide6.QtWidgets import QGridLayout, QWidget
+from PySide6.QtWidgets import QGridLayout, QWidget, QSizePolicy
 
 from src.gui.viewer.slice_viewer import (
     SliceView,
@@ -36,6 +39,8 @@ class QuadViewer(QWidget):
 
         self.ct_volume = None
         self.mask_volume = None
+        self.masks = {}
+        self.visible_keys = set()  
         self.crosshair = (0, 0, 0)
 
         self.window_width = 300.0
@@ -44,6 +49,11 @@ class QuadViewer(QWidget):
         self._build_ui()
 
     # ------------------------------------------------------------------ UI
+    @property
+    def _slice_views(self):
+        return (self.axial_view, self.sagittal_view, self.coronal_view)
+    
+    
     def _build_ui(self) -> None:
         self.axial_view = SliceView(PLANE_AXIAL)
         self.sagittal_view = SliceView(PLANE_SAGITTAL)
@@ -61,10 +71,18 @@ class QuadViewer(QWidget):
         layout.addWidget(self.sagittal_view, 0, 1)
         layout.addWidget(self.coronal_view,  1, 0)
         layout.addWidget(self.view_3d,       1, 1)
-        layout.setRowStretch(0, 1)
-        layout.setRowStretch(1, 1)
-        layout.setColumnStretch(0, 1)
-        layout.setColumnStretch(1, 1)
+        # layout.setRowStretch(0, 1)
+        # layout.setRowStretch(1, 1)
+        # layout.setColumnStretch(0, 1)
+        # layout.setColumnStretch(1, 1)
+
+        for row in (0, 1):
+            layout.setRowStretch(row, 1)
+        for col in (0, 1):
+            layout.setColumnStretch(col, 1)
+        for pane in (*self._slice_views, self.view_3d):
+            pane.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored)
+            pane.setMinimumSize(150, 150)
 
     # ---------------------------------------------------------- public API
     def set_volume(self, volume) -> None:
@@ -81,17 +99,41 @@ class QuadViewer(QWidget):
 
         self.view_3d.set_volume(volume)
 
-    def set_mask(self, mask_volume) -> None:
-        self.mask_volume = mask_volume
-        for view in (self.axial_view, self.sagittal_view, self.coronal_view):
-            view.set_mask(mask_volume)
-        self.view_3d.set_mask(mask_volume)
+    def set_masks(self, masks: dict, visible_keys) -> None:
+        """Show a set of structure masks. Masks that don't fit the CT are skipped."""
+        valid = {}
+        for key, mask in masks.items():
+            if (
+                self.ct_volume is not None
+                and mask.voxel_data.shape != self.ct_volume.voxel_data.shape
+            ):
+                print(f"[QuadViewer] '{key}' does not match the CT - skipped.")
+                continue
+            valid[key] = mask
+ 
+        self.masks = valid
+        self.visible_keys = set(visible_keys) & set(valid)
+        for view in self._slice_views:
+            view.set_masks(valid, self.visible_keys)
+        self.view_3d.set_masks(valid, self.visible_keys)
+ 
+    def set_mask_visible(self, key: str, visible: bool) -> None:
+        if key not in self.masks:
+            return
+        if visible:
+            self.visible_keys.add(key)
+        else:
+            self.visible_keys.discard(key)
+        for view in self._slice_views:
+            view.set_mask_visible(key, visible)
+        self.view_3d.set_mask_visible(key, visible)
 
-    def clear_mask(self) -> None:
-        self.mask_volume = None
-        for view in (self.axial_view, self.sagittal_view, self.coronal_view):
-            view.clear_mask()
-        self.view_3d.clear_mask()
+    def clear_masks(self) -> None:
+        self.masks = {}
+        self.visible_keys = set()
+        for view in self._slice_views:
+            view.clear_masks()
+        self.view_3d.clear_masks()
 
     def set_window_width(self, width: float) -> None:
         self.window_width = max(float(width), 1.0)
@@ -102,7 +144,6 @@ class QuadViewer(QWidget):
         self._push_window()
 
     def set_slice(self, slice_index: int) -> None:
-        """Backward-compatible entry point (axial Z slice)."""
         if self.ct_volume is None:
             return
         z = int(np.clip(slice_index, 0, self.ct_volume.voxel_data.shape[0] - 1))
@@ -110,10 +151,13 @@ class QuadViewer(QWidget):
         self._set_crosshair(x, y, z)
 
     def set_overlay_text(self, text: str) -> None:
-        """Forward study-description overlay to all 2D panes."""
         for view in (self.axial_view, self.sagittal_view, self.coronal_view):
             view.set_overlay_text(text)
-
+    def shutdown(self) -> None:
+        """Release the VTK render window. Call from MainWindow.closeEvent:
+        Qt does not call closeEvent on child widgets when the window closes."""
+        self.view_3d.shutdown()
+ 
     # ------------------------------------------------------------- private
     def _push_window(self) -> None:
         for view in (self.axial_view, self.sagittal_view, self.coronal_view):
