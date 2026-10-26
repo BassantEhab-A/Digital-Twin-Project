@@ -6,8 +6,7 @@ Application logic remains in MainWindow.
 (The Segmentation tab now lives in segmentation_tab.py.)
 """
 
-from PySide6.QtCore import Qt
-from PySide6.QtWidgets import (QWidget,QVBoxLayout,QGroupBox,QPushButton,QLabel,QSlider,QSpinBox)
+from PySide6.QtWidgets import QGroupBox, QLabel, QPushButton, QSpinBox, QVBoxLayout, QWidget
 
 
 class DataTab(QWidget):
@@ -70,5 +69,3 @@ class DataTab(QWidget):
         layout.addWidget(patient_group)
         layout.addWidget(window_group)
         layout.addStretch()
-
-

@@ -3,8 +3,14 @@
 Pure Python: no Qt, no torch. Everything else (planner, case manager,
 viewers, UI) reads from this registry instead of hard-coding "liver".
 
-To add a new structure: add one `Structure(...)` line below. Nothing else
-needs to change.
+To add a new structure: add one `Structure(...)` line in `_build_registry`.
+Nothing else needs to change.
+
+Two kinds of structure exist:
+  * segmentable : produced by a TotalSegmentator task and saved to disk;
+  * derived     : computed by the app (e.g. the resected part of the liver).
+                  Derived structures have no task and are never written to
+                  the results folder.
 """
 from __future__ import annotations
 
@@ -19,21 +25,38 @@ GROUPS = {
     "couinaud": "Couinaud segments",
 }
 
+DERIVED_GROUP = "derived"
+
 # TotalSegmentator tasks, in the order we run them.
 TASK_ORDER = ("total", "liver_vessels", "liver_segments")
+
+# Keys the resection code relies on.
+LIVER = "liver"
+TUMOR = "liver_tumor"
+RESECTED_LIVER = "resected_liver"
+TUMOR_MARGIN = "tumor_margin"
+SEVERED_VESSELS = "severed_vessels"
+DEVASCULARIZED = "devascularized_tissue"
+VESSEL_KEY = "liver_vessels"
+PORTAL_KEY = "portal_vein_and_splenic_vein"
+IVC_KEY = "inferior_vena_cava"
 
 
 @dataclass(frozen=True)
 class Structure:
     key: str                      # TotalSegmentator class name == file stem
     label: str                    # text shown in the UI
-    group: str                    # key of GROUPS
-    task: str                     # TotalSegmentator task that produces it
+    group: str                    # key of GROUPS (or DERIVED_GROUP)
+    task: str | None              # TotalSegmentator task; None for derived
     color: str                    # used in 2D overlay and 3D mesh
     layer: int                    # draw order in 2D (low = bottom)
     required: bool = False        # missing output = error (else = "not found")
     keep_largest: bool = False    # 3D: keep only the biggest connected piece
     default_visible: bool = True  # initial state of its display checkbox
+
+    @property
+    def is_derived(self) -> bool:
+        return self.group == DERIVED_GROUP
 
 
 @dataclass(frozen=True)
@@ -51,11 +74,11 @@ _COUINAUD_COLORS = (
 )
 
 
-def _build_registry():
+def _build_registry() -> tuple:
     items = [
-        Structure("liver", "Liver", "liver", "total", "#d98c7a", 0,
+        Structure(LIVER, "Liver", "liver", "total", "#d98c7a", 0,
                   required=True, keep_largest=True),
-        # layer 1 = couinaud (drawn over liver, under vessels)
+        # 2D draw order: liver (0) < couinaud / margin (1) < vessels (2) < tumor (3)
         Structure("liver_vessels", "Hepatic vessels", "vessels",
                   "liver_vessels", "#3b82f6", 2),
         Structure("portal_vein_and_splenic_vein", "Portal & splenic vein",
@@ -63,8 +86,7 @@ def _build_registry():
         Structure("inferior_vena_cava", "Inferior vena cava", "vessels",
                   "total", "#06b6d4", 2),
         # Several separate lesions are normal -> never keep_largest.
-        Structure("liver_tumor", "Liver tumors", "tumors",
-                  "liver_vessels", "#ffd60a", 3),
+        Structure(TUMOR, "Liver tumors", "tumors", "liver_vessels", "#ffd60a", 3),
     ]
     for i, (roman, color) in enumerate(zip(_ROMAN, _COUINAUD_COLORS), start=1):
         items.append(
@@ -72,21 +94,37 @@ def _build_registry():
                       "liver_segments", color, 1,
                       keep_largest=True, default_visible=False)
         )
+    items += [
+        Structure(RESECTED_LIVER, "Resected liver", DERIVED_GROUP, None,
+                  "#8b0000", 0),
+        Structure(TUMOR_MARGIN, "Tumor + margin", DERIVED_GROUP, None,
+                  "#ff9f1c", 1),
+        Structure(DEVASCULARIZED, "Tissue without inflow/outflow", DERIVED_GROUP, None,
+                  "#7e22ce", 1),
+        Structure(SEVERED_VESSELS, "Severed vessels", DERIVED_GROUP, None,
+                  "#ef4444", 3),
+    ]
     return tuple(items)
 
 
 STRUCTURES = _build_registry()
 STRUCTURE_BY_KEY = {s.key: s for s in STRUCTURES}
+SEGMENTABLE = tuple(s for s in STRUCTURES if not s.is_derived)
+COUINAUD_KEYS = tuple(f"liver_segment_{i}" for i in range(1, 9))
 
 
 def mask_filename(key: str) -> str:
     return f"{key}.nii.gz"
 
 
+def structures_in_group(group: str) -> list:
+    return [s for s in STRUCTURES if s.group == group]
+
+
 def keys_for_groups(groups) -> list:
     """Structure keys that belong to the ticked groups (liver is always included)."""
     wanted = set(groups) | {"liver"}
-    return [s.key for s in STRUCTURES if s.group in wanted]
+    return [s.key for s in SEGMENTABLE if s.group in wanted]
 
 
 def plan_runs(groups) -> list:
@@ -100,7 +138,7 @@ def plan_runs(groups) -> list:
     wanted = set(groups) | {"liver"}
     runs = []
     for task in TASK_ORDER:
-        in_task = [s for s in STRUCTURES if s.task == task]
+        in_task = [s for s in SEGMENTABLE if s.task == task]
         selected = [s for s in in_task if s.group in wanted]
         if not selected:
             continue

@@ -16,7 +16,7 @@ from matplotlib.figure import Figure
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import QSizePolicy, QVBoxLayout, QWidget
 
-from src.core.stuctures import STRUCTURE_BY_KEY
+from src.core.structures import STRUCTURE_BY_KEY
 from src.gui.viewer.pane_header import PaneHeader
 
 PLANE_AXIAL = "axial"

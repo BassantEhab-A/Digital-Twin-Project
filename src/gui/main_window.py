@@ -10,12 +10,23 @@ WHAT can be segmented is defined in src/core/structures.py.
 
 from pathlib import Path
 
-from PySide6.QtCore import QThread
-from PySide6.QtWidgets import (QFileDialog,QHBoxLayout,QMainWindow,QMessageBox,QStatusBar, QTabWidget,QWidget,)
+from PySide6.QtCore import Qt, QThread
+from PySide6.QtWidgets import (
+    QApplication, QFileDialog, QHBoxLayout, QMainWindow, QMessageBox,
+    QStatusBar, QTabWidget, QWidget,
+)
+
 from src.core.case_manager import CaseManager
-# from src.core.structures import (STRUCTURE_BY_KEY, plan_runs, missing_runs, keys_for_groups)
-from src.core.stuctures import (STRUCTURE_BY_KEY, plan_runs, missing_runs, keys_for_groups) 
-from src.gui.tabs import data_tab, segmentation_tab
+from src.core.resection import (
+    PlaneCut, ResectionEngine, SegmentCut, VesselTree, expand_mask_mm,
+    suggest_plane_cut, suggest_segment_cut,
+)
+from src.core.structures import (
+    DEVASCULARIZED, IVC_KEY, PORTAL_KEY, RESECTED_LIVER, SEVERED_VESSELS,
+    STRUCTURE_BY_KEY, TUMOR, TUMOR_MARGIN, VESSEL_KEY,
+    keys_for_groups, missing_runs, plan_runs,
+)
+from src.gui.tabs import data_tab, resection_tab, segmentation_tab
 from src.gui.viewer.quad_viewer import QuadViewer
 from src.io.dicom_io import load_dicom
 from src.io.nifti_io import load_nifti
@@ -31,6 +42,12 @@ class MainWindow(QMainWindow):
 
         # Application components
         self.case_manager = CaseManager()
+        # Resection state. case_manager.masks always keeps the ORIGINAL masks;
+        # the simulated result is overlaid only when building the display.
+        self._resection_result = None
+        self._margin_zone = None          # tumor dilated by the margin (bool array)
+        self._manual_points = []          # picked points, patient coordinates (mm)
+        self._vessel_tree = None          # built on first use, per case
 
         # References are kept while segmentation is running.
         self.segmentation_thread = None
@@ -39,6 +56,7 @@ class MainWindow(QMainWindow):
         self._configure_window()
         self._build_ui()
 
+    # =====================================================================
     # Window construction
     # =====================================================================
     def _configure_window(self):
@@ -58,10 +76,14 @@ class MainWindow(QMainWindow):
         # Left side: tabs
         # ------------------------------------------------------------
         self.tabs = QTabWidget()
+
         self.data_tab = data_tab.DataTab()
         self.segmentation_tab = segmentation_tab.SegmentationTab()
+        self.resection_tab = resection_tab.ResectionTab()
+
         self.tabs.addTab(self.data_tab, "Data")
         self.tabs.addTab(self.segmentation_tab, "Segmentation")
+        self.tabs.addTab(self.resection_tab, "Resection")
 
         # ------------------------------------------------------------
         # Right side: 2x2 quad viewer (axial / sagittal / coronal / 3D)
@@ -83,6 +105,17 @@ class MainWindow(QMainWindow):
         for check in self.segmentation_tab.group_checks.values():
             check.toggled.connect(self._refresh_segment_button)
         self.segmentation_tab.force_check.toggled.connect(self._refresh_segment_button)
+       
+        # Connect Resection tab signals
+        tab = self.resection_tab
+        tab.planar_cut_requested.connect(self._handle_planar_cut)
+        tab.anatomical_cut_requested.connect(self._handle_anatomical_cut)
+        tab.manual_point_requested.connect(self._add_manual_point)
+        tab.manual_points_cleared.connect(self._clear_manual_points)
+        tab.manual_cut_requested.connect(self._handle_manual_cut)
+        tab.suggest_requested.connect(self._handle_suggestion)
+        tab.margin_changed.connect(self._on_margin_changed)
+        tab.reset_requested.connect(self._reset_resection)
 
     def closeEvent(self, event):
         """Release the VTK render window cleanly.
@@ -155,13 +188,20 @@ class MainWindow(QMainWindow):
 
     # Volume display
     # =====================================================================
-    def _display_loaded_volume(self, volume):
-        """Display a newly loaded CT and configure its viewer controls."""
-        self.viewer.set_volume(volume)
-        self.segmentation_tab.reset_results()       # masks belonged to the old CT
-        self._configure_controls_for_volume()
 
-        # Push study/series description to each 2D pane's corner overlay.
+    def _display_loaded_volume(self, volume):
+        """Display a newly loaded CT and reset case-dependent UI state."""
+        self.viewer.set_volume(volume)
+        self.segmentation_tab.reset_results()
+
+        # A new case invalidates any previous resection simulation.
+        self._reset_resection_state()
+        self.resection_tab.set_case(
+            self.case_manager.ct_volume,
+            self.case_manager.masks,
+        )
+
+        self._configure_controls_for_volume()
         self.viewer.set_overlay_text(self._build_overlay_text(volume))
 
     def _build_overlay_text(self, volume):
@@ -242,18 +282,174 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage(message)
 
     def _show_masks(self):
-        """Push the CaseManager's masks to the viewer and the display checkboxes.
+        """Refresh viewer and tabs after masks were loaded; return empty-structure labels."""
+        masks = self.case_manager.masks
+        empty = {key for key, mask in masks.items() if not mask.voxel_data.any()}
 
-        Returns the labels of structures whose mask is empty ('none found').
-        """
-        masks = dict(self.case_manager.masks)
-        empty = {k for k, m in masks.items() if not m.voxel_data.any()}
-
-        # The tab first (it decides default visibility), then the viewer.
+        # New masks may change the liver: an older simulation no longer applies.
+        self._reset_resection_state()
+        self.resection_tab.clear_results()
         self.segmentation_tab.set_available(set(masks), empty)
-        self.viewer.set_masks(masks, self.segmentation_tab.visible_keys())
-        return [STRUCTURE_BY_KEY[k].label for k in sorted(empty)]
+        self._update_margin_zone()
+        self._refresh_viewer()
+        self.resection_tab.set_case(self.case_manager.ct_volume, masks)
 
+        return [STRUCTURE_BY_KEY[key].label for key in sorted(empty)]
+
+    # =====================================================================
+    # Display: original masks + (optional) resection overlay
+    # =====================================================================
+    def _display_masks(self) -> dict:
+        """Masks to draw. Never modifies case_manager.masks."""
+        masks = dict(self.case_manager.masks)
+        liver = masks.get("liver")
+        if liver is None:
+            return masks
+
+        if self._margin_zone is not None:
+            masks[TUMOR_MARGIN] = liver.like(self._margin_zone)
+        result = self._resection_result
+        if result is not None:
+            masks["liver"] = liver.like(result.retained_mask)
+            masks[RESECTED_LIVER] = liver.like(result.removed_mask)
+            if result.vascular is not None:
+                masks[DEVASCULARIZED] = liver.like(result.vascular.devascularized_mask)
+                masks[SEVERED_VESSELS] = liver.like(result.vascular.severed_vessel_mask)
+        return masks
+
+    def _refresh_viewer(self):
+        masks = self._display_masks()
+        visible = self.segmentation_tab.visible_keys() | {
+            key for key in masks
+            if STRUCTURE_BY_KEY[key].is_derived and STRUCTURE_BY_KEY[key].default_visible
+        }
+        self.viewer.set_masks(masks, visible)
+
+    def _update_margin_zone(self):
+        """Recompute tumor + margin (inside the liver) for the current margin setting."""
+        masks = self.case_manager.masks
+        liver, tumor = masks.get("liver"), masks.get(TUMOR)
+        self._margin_zone = None
+        if liver is None or tumor is None or not tumor.voxel_data.any():
+            return
+        inside = liver.voxel_data > 0
+        zone = expand_mask_mm(tumor.voxel_data > 0, liver.spacing, self.resection_tab.margin_mm())
+        self._margin_zone = zone & inside
+
+    def _get_vessel_tree(self):
+        """Vessel graph for the current case (built once, then reused). None if unavailable."""
+        if self._vessel_tree is None:
+            masks = self.case_manager.masks
+            vessels = masks.get(VESSEL_KEY)
+            if vessels is None or not vessels.voxel_data.any():
+                return None
+            self.statusBar().showMessage("Building the vessel graph...")
+            self._vessel_tree = VesselTree.build(
+                vessels, portal=masks.get(PORTAL_KEY), ivc=masks.get(IVC_KEY))
+        return self._vessel_tree
+
+    def _reset_resection_state(self):
+        self._resection_result = None
+        self._vessel_tree = None
+        self._margin_zone = None
+        self._manual_points = []
+        self.resection_tab.set_manual_points(0)
+
+    # =====================================================================
+    # Resection simulation (logic only; maths is in src/core/resection)
+    # =====================================================================
+    def _run_cut(self, make_cut):
+        """Build a cut with `make_cut(liver)`, simulate it and show the result."""
+        masks = self.case_manager.masks
+        liver = masks.get("liver")
+        if liver is None:
+            return
+        QApplication.setOverrideCursor(Qt.WaitCursor)
+        try:
+            cut = make_cut(liver)
+            vessel_tree = self._get_vessel_tree() if self.resection_tab.analyze_vessels() else None
+            result = ResectionEngine.simulate(
+                liver, cut, tumor=masks.get(TUMOR),
+                margin_mm=self.resection_tab.margin_mm(),
+                threshold_percent=self.resection_tab.flr_threshold(),
+                vessel_tree=vessel_tree,
+            )
+        except ValueError as error:                 # bad user input, not a crash
+            self.resection_tab.show_message(str(error))
+            return
+        finally:
+            QApplication.restoreOverrideCursor()
+
+        self._resection_result = result
+        self.resection_tab.display_result(result)
+        self._refresh_viewer()
+        self.statusBar().showMessage(f"{result.cut_description}: FLR {result.flr_percentage:.1f} %.")
+
+    def _handle_planar_cut(self, orientation: str, position: int, keep_positive: bool):
+        self._run_cut(lambda liver: PlaneCut.axis_aligned(
+            liver, orientation, position, keep_positive))
+
+    def _handle_anatomical_cut(self, segment_keys: list):
+        self._run_cut(lambda liver: SegmentCut(self.case_manager.masks, segment_keys))
+
+    def _handle_manual_cut(self, keep_positive: bool):
+        points = list(self._manual_points)
+
+        def make_cut(_liver):
+            if len(points) != 3:
+                raise ValueError("Add three points first.")
+            return PlaneCut.from_points(*points, keep_positive=keep_positive)
+
+        self._run_cut(make_cut)
+
+    def _handle_suggestion(self, mode: str):
+        """Propose a cut that removes tumor + margin, then simulate it."""
+        if self._margin_zone is None:
+            self.resection_tab.show_message("No tumor segmented - nothing to plan around.")
+            return
+        zone = self._margin_zone
+
+        def make_cut(liver):
+            if mode == "planar":
+                return suggest_plane_cut(liver, zone)
+            cut = suggest_segment_cut(self.case_manager.masks, zone)
+            self.resection_tab.set_selected_segments(cut.keys)
+            return cut
+
+        self._run_cut(make_cut)
+
+    # ---- manual cut points -------------------------------------------------
+    def _add_manual_point(self):
+        ct = self.case_manager.ct_volume
+        if ct is None:
+            return
+        x, y, z = self.viewer.crosshair
+        self._manual_points = (self._manual_points + [ct.voxel_to_world([x, y, z])])[-3:]
+        self.resection_tab.set_manual_points(len(self._manual_points))
+
+    def _clear_manual_points(self):
+        self._manual_points = []
+        self.resection_tab.set_manual_points(0)
+
+    # ---- margin / reset ----------------------------------------------------
+    def _on_margin_changed(self, _margin_mm: float):
+        if self.case_manager.liver_mask is None:
+            return
+        # A result computed with the old margin would be misleading.
+        self._resection_result = None
+        self.resection_tab.clear_results()
+        self._update_margin_zone()
+        self._refresh_viewer()
+
+    def _reset_resection(self):
+        """Back to the intact liver."""
+        self._resection_result = None
+        self._manual_points = []
+        self.resection_tab.set_manual_points(0)
+        self.resection_tab.clear_results()
+        if self.case_manager.masks:
+            self._refresh_viewer()
+        self.statusBar().showMessage("Resection simulation reset.")
 
     # CT Window Width / Window Level
     # =====================================================================
@@ -377,7 +573,6 @@ class MainWindow(QMainWindow):
         if details:
             box.setDetailedText(details)
         box.exec()
-        self.statusBar().showMessage("Segmentation failed.")
         self._set_processing_state(False)
 
         # Runs that completed before the failure are already saved; clicking

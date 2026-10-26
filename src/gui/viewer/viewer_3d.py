@@ -1,7 +1,4 @@
-"""
-3D viewer pane (PyVista/VTK) that displays ONLY the liver surface.
-
-"""
+"""3D viewer pane (PyVista/VTK): surfaces of every visible structure."""
 from __future__ import annotations
 import traceback   
 
@@ -10,7 +7,7 @@ import pyvista as pv
 from pyvistaqt import QtInteractor
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import QApplication, QLabel, QVBoxLayout, QWidget
-from src.core.stuctures import STRUCTURE_BY_KEY
+from src.core.structures import RESECTED_LIVER, STRUCTURE_BY_KEY
 from src.gui.viewer.pane_header import PaneHeader
 
 
@@ -90,6 +87,7 @@ class VolumeViewer3D(QWidget):
         self.visible = set()
         self._meshes = {}          # key -> PolyData (cache)
         self._scene_ready = False
+
         self._dirty = False
         self._build_ui()
 
@@ -102,7 +100,7 @@ class VolumeViewer3D(QWidget):
         layout.addWidget(self.header)
 
         self.status = QLabel(idle_message)
-        self.status.setWordWrap
+        self.status.setWordWrap(True)
         self.status.setStyleSheet(
             "background:#f4f4f4; color:#333; padding:4px; font-size:11px;"
         )
@@ -115,13 +113,14 @@ class VolumeViewer3D(QWidget):
        # self.plotter.add_axes()   --- not added
 
     def set_volume(self, volume) -> None:
-        """Kept for API compatibility — the CT itself is not rendered."""
+        """Set a new CT volume and clear case-dependent visualization state."""
         self.ct_volume = volume
         self._reset_masks()
         self._set_status(idle_message)
         self._request_render()
-
+        
     def set_masks(self, masks: dict, visible_keys) -> None:
+
         self.masks = dict(masks)
         self.visible = set(visible_keys) & set(self.masks)
         self._meshes.clear()
@@ -139,7 +138,7 @@ class VolumeViewer3D(QWidget):
         else:
             self._request_render() 
 
-    def clear_mask(self) -> None:
+    def clear_masks(self) -> None:
         self._reset_masks()
         self._set_status(idle_message)
         self._request_render()
@@ -278,18 +277,27 @@ class VolumeViewer3D(QWidget):
             )
         except Exception as err:
             print(f"[3D] Orientation labels skipped: {err}")
- 
+    
     def _apply_visibility(self, render: bool = True) -> None:
         """Add/remove actors to match `self.visible`. Does not touch the camera."""
         shown = [k for k in self.visible if self.masks[k].voxel_data.any()]
         others_shown = any(k != "liver" for k in shown)
- 
+        simulation_active = RESECTED_LIVER in self.masks
+
         for key in self.masks:
             if key in shown:
                 mesh = self._get_mesh(key)
                 if mesh.n_points == 0:
                     continue
-                opacity = LIVER_CONTEXT_OPACITY if (key == "liver" and others_shown) else 1.0
+                    
+                # Adjust opacities
+                if key == "liver" and simulation_active:
+                    opacity = 1.0 # Keep the remnant solid
+                elif key == "liver" and others_shown:
+                    opacity = LIVER_CONTEXT_OPACITY
+                else:
+                    opacity = 1.0
+                    
                 self.plotter.add_mesh(
                     mesh, color=STRUCTURE_BY_KEY[key].color, opacity=opacity,
                     smooth_shading=True, specular=0.15, diffuse=0.9, ambient=0.35,
@@ -299,6 +307,6 @@ class VolumeViewer3D(QWidget):
                 try:
                     self.plotter.remove_actor(key, render=False)
                 except Exception:
-                    pass          # actor was never added
+                    pass
         if render:
             self.plotter.render()

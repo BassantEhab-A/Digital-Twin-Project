@@ -7,7 +7,7 @@ from __future__ import annotations
 from pathlib import Path
 import inspect ,json, os, shutil
 import SimpleITK as sitk
-from src.core.stuctures import STRUCTURE_BY_KEY, mask_filename
+from src.core.structures import STRUCTURE_BY_KEY, mask_filename
 
 
 def _default_device():

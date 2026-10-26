@@ -38,7 +38,6 @@ class QuadViewer(QWidget):
         super().__init__(parent)
 
         self.ct_volume = None
-        self.mask_volume = None
         self.masks = {}
         self.visible_keys = set()  
         self.crosshair = (0, 0, 0)
@@ -52,15 +51,14 @@ class QuadViewer(QWidget):
     @property
     def _slice_views(self):
         return (self.axial_view, self.sagittal_view, self.coronal_view)
-    
-    
+
     def _build_ui(self) -> None:
         self.axial_view = SliceView(PLANE_AXIAL)
         self.sagittal_view = SliceView(PLANE_SAGITTAL)
         self.coronal_view = SliceView(PLANE_CORONAL)
         self.view_3d = VolumeViewer3D()
 
-        for view in (self.axial_view, self.sagittal_view, self.coronal_view):
+        for view in self._slice_views:
             view.slice_changed.connect(self._on_slice_changed)
             view.voxel_clicked.connect(self._on_voxel_clicked)
 
@@ -71,10 +69,6 @@ class QuadViewer(QWidget):
         layout.addWidget(self.sagittal_view, 0, 1)
         layout.addWidget(self.coronal_view,  1, 0)
         layout.addWidget(self.view_3d,       1, 1)
-        # layout.setRowStretch(0, 1)
-        # layout.setRowStretch(1, 1)
-        # layout.setColumnStretch(0, 1)
-        # layout.setColumnStretch(1, 1)
 
         for row in (0, 1):
             layout.setRowStretch(row, 1)
@@ -87,12 +81,11 @@ class QuadViewer(QWidget):
     # ---------------------------------------------------------- public API
     def set_volume(self, volume) -> None:
         self.ct_volume = volume
-        self.mask_volume = None
 
         z, y, x = volume.voxel_data.shape
         self.crosshair = (x // 2, y // 2, z // 2)
 
-        for view in (self.axial_view, self.sagittal_view, self.coronal_view):
+        for view in self._slice_views:
             view.set_window(self.window_width, self.window_level)
             view.set_volume(volume)
             view.set_crosshair(*self.crosshair)
@@ -116,7 +109,7 @@ class QuadViewer(QWidget):
         for view in self._slice_views:
             view.set_masks(valid, self.visible_keys)
         self.view_3d.set_masks(valid, self.visible_keys)
- 
+
     def set_mask_visible(self, key: str, visible: bool) -> None:
         if key not in self.masks:
             return
@@ -151,8 +144,9 @@ class QuadViewer(QWidget):
         self._set_crosshair(x, y, z)
 
     def set_overlay_text(self, text: str) -> None:
-        for view in (self.axial_view, self.sagittal_view, self.coronal_view):
+        for view in self._slice_views:
             view.set_overlay_text(text)
+
     def shutdown(self) -> None:
         """Release the VTK render window. Call from MainWindow.closeEvent:
         Qt does not call closeEvent on child widgets when the window closes."""
@@ -160,7 +154,7 @@ class QuadViewer(QWidget):
  
     # ------------------------------------------------------------- private
     def _push_window(self) -> None:
-        for view in (self.axial_view, self.sagittal_view, self.coronal_view):
+        for view in self._slice_views:
             view.set_window(self.window_width, self.window_level)
 
     def _set_crosshair(self, x: int, y: int, z: int) -> None:
@@ -173,7 +167,7 @@ class QuadViewer(QWidget):
 
         self.crosshair = (x, y, z)
 
-        for view in (self.axial_view, self.sagittal_view, self.coronal_view):
+        for view in self._slice_views:
             view.set_crosshair(x, y, z)
 
         self.crosshair_changed.emit(x, y, z)

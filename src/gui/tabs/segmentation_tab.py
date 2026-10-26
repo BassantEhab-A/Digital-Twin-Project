@@ -15,8 +15,8 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-
-from src.core.stuctures import GROUPS, STRUCTURES
+from src.gui.tabs.scrollable import make_scrollable
+from src.core.structures import GROUPS, STRUCTURES
 
 
 class SegmentationTab(QWidget):
@@ -33,7 +33,8 @@ class SegmentationTab(QWidget):
 
     # ------------------------------------------------------------------ UI
     def _build_ui(self) -> None:
-        layout = QVBoxLayout(self)
+        content = QWidget()
+        layout = QVBoxLayout(content)
 
         # ---- what to run -------------------------------------------------
         run_group = QGroupBox("Segment")
@@ -89,6 +90,8 @@ class SegmentationTab(QWidget):
         self.visibility_checks = {}
         current_group = None
         for structure in STRUCTURES:
+            if structure.is_derived:
+                continue
             if structure.group != current_group:
                 current_group = structure.group
                 heading = QLabel(f"<b>{GROUPS[current_group]}</b>")
@@ -118,6 +121,10 @@ class SegmentationTab(QWidget):
         layout.addWidget(display_group)
         layout.addStretch()
 
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.addWidget(make_scrollable(content))
+        
     # ----------------------------------------------------------- queries
     def selected_groups(self) -> set:
         """Groups ticked in the 'Segment' box (liver is always included)."""
@@ -143,6 +150,8 @@ class SegmentationTab(QWidget):
         self._available.clear()
         self._empty.clear()
         for structure in STRUCTURES:
+            if structure.is_derived:
+                continue
             check = self.visibility_checks[structure.key]
             check.blockSignals(True)
             check.setChecked(False)

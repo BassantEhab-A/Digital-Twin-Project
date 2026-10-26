@@ -1,8 +1,7 @@
 """Orientation bar and slice slider shown above each pane."""
 
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtWidgets import (QHBoxLayout,QLabel,QSlider,QWidget,)
-from sympy import ff
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QSlider, QWidget
 
 
 # Color used for each pane's header bar.
